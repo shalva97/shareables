@@ -1,15 +1,15 @@
 package com.example.shareables
 
 import android.os.Bundle
-import android.view.PixelCopy
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import android.content.ContentValues
 import android.content.Context
-import android.provider.MediaStore
+import android.content.Intent
 import android.graphics.Bitmap
-import android.os.Environment
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileOutputStream
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.shareables.ui.theme.ShareablesTheme
 import dev.shreyaspatil.capturable.capturable
 import dev.shreyaspatil.capturable.controller.rememberCaptureController
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -43,8 +44,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ShareablesTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
+                    ShareableCanvas(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -55,14 +55,14 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun ShareableCanvas(modifier: Modifier = Modifier) {
     val captureController = rememberCaptureController()
     Column(
         modifier = modifier.fillMaxSize()
     ) {
         Canvas(
             modifier = Modifier
-                .size(300.dp)
+                .size(301.dp)
                 .padding(16.dp)
                 .capturable(captureController)
         ) {
@@ -70,7 +70,8 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
             val canvasHeight = size.height
 
             // Draw colorful circles
-            for (i in 0..20) {
+            for (i in 0..10) {
+                val radius = maxOf(50f, (Math.random() * minOf(canvasWidth, canvasHeight) * 0.2f).toFloat())
                 drawCircle(
                     color = Color(
                         red = Math.random().toFloat(),
@@ -78,61 +79,102 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
                         blue = Math.random().toFloat(),
                         alpha = 0.5f
                     ),
-                    radius = (Math.random() * 100).toFloat(),
+                    radius = radius,
                     center = Offset(
-                        x = (Math.random() * canvasWidth).toFloat(),
-                        y = (Math.random() * canvasHeight).toFloat()
+                        x = (radius + Math.random() * (canvasWidth - 2 * radius)).toFloat(),
+                        y = (radius + Math.random() * (canvasHeight - 2 * radius)).toFloat()
                     )
                 )
             }
         }
-        Text(
-            text = "Hello $name!",
-            modifier = modifier
-        )
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
         Button(onClick = {
-            // Capture content
             scope.launch {
                 val bitmapAsync = captureController.captureAsync()
-                try {
-                    val bitmap: ImageBitmap = bitmapAsync.await()
-                    bitmap.asAndroidBitmap()?.let { androidBitmap ->
-                        saveBitmapToStorage(androidBitmap, context)
-                    }
-                    // Do something with `bitmap`.
-                } catch (error: Throwable) {
-                    error.printStackTrace()
-                    // Error occurred, do something.
+                val bitmap: ImageBitmap = bitmapAsync.await()
+                bitmap.asAndroidBitmap()?.let { androidBitmap ->
+                    shareImageToInstagramStories(androidBitmap, context)
                 }
             }
         }) {
-            Text(text = "Capture")
+            Text(text = "Share to Instagram")
+        }
+        Button(onClick = {
+            scope.launch {
+                val bitmapAsync = captureController.captureAsync()
+                val bitmap: ImageBitmap = bitmapAsync.await()
+                bitmap.asAndroidBitmap()?.let { androidBitmap ->
+                    shareImageToFacebookStories(androidBitmap, context)
+                }
+            }
+        }) {
+            Text(text = "Share to Facebook")
         }
     }
 }
 
-private fun saveBitmapToStorage(bitmap: Bitmap, context: Context) {
-    val filename = "canvas_${System.currentTimeMillis()}.jpg"
-    val contentValues = ContentValues().apply {
-        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+private suspend fun shareImageToInstagramStories(bitmap: Bitmap, context: Context) {
+    val cachePath = File(context.cacheDir, "images")
+    cachePath.mkdirs()
+    val file = File(cachePath, "canvas.png")
+    FileOutputStream(file).use { outputStream ->
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        outputStream.flush()
     }
 
-    val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-    uri?.let { uri ->
-        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-        }
+    val contentUri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+
+    val storiesIntent = Intent("com.instagram.share.ADD_TO_STORY").apply {
+        type = "image/png"
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        putExtra("interactive_asset_uri", contentUri)
+        putExtra("top_background_color", "#FFE6F2FF")
+        putExtra("bottom_background_color", "#FF007dff")
     }
+    context.grantUriPermission(
+        "com.instagram.android", contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+    )
+    
+    context.startActivity(storiesIntent)
+}
+
+private suspend fun shareImageToFacebookStories(bitmap: Bitmap, context: Context) {
+    val file = File(context.cacheDir, "canvas.png")
+    FileOutputStream(file).use { outputStream ->
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        outputStream.flush()
+    }
+
+    val contentUri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+
+    println(contentUri.path)
+    val storiesIntent = Intent("com.facebook.stories.ADD_TO_STORY").apply {
+        type = "image/png"
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        putExtra("interractive_asset_uri", contentUri)
+        putExtra("top_background_color", "#EE4645")
+        putExtra("bottom_background_color", "#0054a1")
+//        putExtra("com.facebook.platform.extra.APPLICATION_ID", "APP ID") // TODO add app id
+    }
+    context.grantUriPermission(
+        "com.facebook.katana", contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+    );
+    context.startActivity(storiesIntent)
 }
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     ShareablesTheme {
-        Greeting("Android")
+        ShareableCanvas()
     }
 }
