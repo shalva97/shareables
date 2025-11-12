@@ -1,15 +1,13 @@
 package com.example.shareables
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
-import androidx.core.content.FileProvider
-import java.io.File
-import java.io.FileOutputStream
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,22 +16,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.example.shareables.ui.theme.ShareablesTheme
 import dev.shreyaspatil.capturable.capturable
 import dev.shreyaspatil.capturable.controller.rememberCaptureController
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+
 
 class MainActivity : ComponentActivity() {
 
@@ -115,19 +116,7 @@ fun ShareableCanvas(modifier: Modifier = Modifier) {
 }
 
 private suspend fun shareImageToInstagramStories(bitmap: Bitmap, context: Context) {
-    val cachePath = File(context.cacheDir, "images")
-    cachePath.mkdirs()
-    val file = File(cachePath, "canvas.png")
-    FileOutputStream(file).use { outputStream ->
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-        outputStream.flush()
-    }
-
-    val contentUri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
-    )
+    val contentUri = saveBitmapToCacheAndGetUri(context, bitmap)
 
     val storiesIntent = Intent("com.instagram.share.ADD_TO_STORY").apply {
         type = "image/png"
@@ -139,24 +128,14 @@ private suspend fun shareImageToInstagramStories(bitmap: Bitmap, context: Contex
     context.grantUriPermission(
         "com.instagram.android", contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
     )
-    
+
     context.startActivity(storiesIntent)
 }
 
 private suspend fun shareImageToFacebookStories(bitmap: Bitmap, context: Context) {
-    val file = File(context.cacheDir, "canvas.png")
-    FileOutputStream(file).use { outputStream ->
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-        outputStream.flush()
-    }
+    val contentUri = saveBitmapToCacheAndGetUri(context, bitmap)
 
-    val contentUri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
-    )
-
-    println(contentUri.path)
+    println(contentUri?.path)
     val storiesIntent = Intent("com.facebook.stories.ADD_TO_STORY").apply {
         type = "image/png"
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -169,6 +148,20 @@ private suspend fun shareImageToFacebookStories(bitmap: Bitmap, context: Context
         "com.facebook.katana", contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
     );
     context.startActivity(storiesIntent)
+}
+
+private fun saveBitmapToCacheAndGetUri(context: Context, bitmap: Bitmap): Uri? {
+    val file = File(context.cacheDir, "canvas.png")
+    FileOutputStream(file).use { outputStream ->
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        outputStream.flush()
+    }
+
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
 }
 
 @Preview(showBackground = true)
