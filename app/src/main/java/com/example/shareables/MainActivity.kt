@@ -163,7 +163,7 @@ private suspend fun shareImageToFacebookStories(bitmap: Bitmap, context: Context
         putExtra("interractive_asset_uri", contentUri)
         putExtra("top_background_color", "#EE4645")
         putExtra("bottom_background_color", "#0054a1")
-//        putExtra("com.facebook.platform.extra.APPLICATION_ID", "APP ID") // TODO add app id
+//        putExtra("com.facebook.platform.extra.APPLICATION_ID", "APP ID") // TODO add app id, probably not needed
     }
     context.grantUriPermission(
         "com.facebook.katana", contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
