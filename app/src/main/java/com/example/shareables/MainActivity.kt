@@ -142,6 +142,7 @@ private suspend fun shareImageToFacebookStories(bitmap: Bitmap, context: Context
         putExtra("interactive_asset_uri", contentUri)
         putExtra("top_background_color", "#EE4645")
         putExtra("bottom_background_color", "#0054a1")
+        clipData = android.content.ClipData.newRawUri("", contentUri)
 //        putExtra("com.facebook.platform.extra.APPLICATION_ID", "APP ID") // TODO add app id, probably not needed
     }
     context.grantUriPermission(
