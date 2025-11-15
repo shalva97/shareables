@@ -112,6 +112,17 @@ fun ShareableCanvas(modifier: Modifier = Modifier) {
         }) {
             Text(text = "Share to Facebook")
         }
+        Button(onClick = {
+            scope.launch {
+                val bitmapAsync = captureController.captureAsync()
+                val bitmap: ImageBitmap = bitmapAsync.await()
+                bitmap.asAndroidBitmap()?.let { androidBitmap ->
+                    shareImageToOtherApps(androidBitmap, context)
+                }
+            }
+        }) {
+            Text(text = "Share to Other Apps")
+        }
     }
 }
 
@@ -163,6 +174,19 @@ private fun saveBitmapToCacheAndGetUri(context: Context, bitmap: Bitmap): Uri? {
         "${context.packageName}.fileprovider",
         file
     )
+}
+
+private suspend fun shareImageToOtherApps(bitmap: Bitmap, context: Context) {
+    val contentUri = saveBitmapToCacheAndGetUri(context, bitmap)
+
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "image/png"
+        putExtra(Intent.EXTRA_STREAM, contentUri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        clipData = android.content.ClipData.newRawUri("", contentUri)
+    }
+
+    context.startActivity(Intent.createChooser(shareIntent, "Share image using"))
 }
 
 @Preview(showBackground = true)
