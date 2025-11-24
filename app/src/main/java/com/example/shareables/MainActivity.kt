@@ -135,6 +135,7 @@ private suspend fun shareImageToInstagramStories(bitmap: Bitmap, context: Contex
         putExtra("interactive_asset_uri", contentUri)
         putExtra("top_background_color", "#FFE6F2FF")
         putExtra("bottom_background_color", "#FF007dff")
+        clipData = android.content.ClipData.newRawUri("", contentUri)
     }
     context.grantUriPermission(
         "com.instagram.android", contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
