@@ -35,9 +35,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
-
 class MainActivity : ComponentActivity() {
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,13 +126,14 @@ fun ShareableCanvas(modifier: Modifier = Modifier) {
 
 private suspend fun shareImageToInstagramStories(bitmap: Bitmap, context: Context) {
     val contentUri = saveBitmapToCacheAndGetUri(context, bitmap)
+    val colors = getGradientColors(bitmap)
 
     val storiesIntent = Intent("com.instagram.share.ADD_TO_STORY").apply {
         type = "image/png"
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         putExtra("interactive_asset_uri", contentUri)
-        putExtra("top_background_color", "#FFE6F2FF")
-        putExtra("bottom_background_color", "#FF007dff")
+        putExtra("top_background_color", colors.top)
+        putExtra("bottom_background_color", colors.bottom)
         clipData = android.content.ClipData.newRawUri("", contentUri)
     }
     context.grantUriPermission(
@@ -146,14 +145,15 @@ private suspend fun shareImageToInstagramStories(bitmap: Bitmap, context: Contex
 
 private suspend fun shareImageToFacebookStories(bitmap: Bitmap, context: Context) {
     val contentUri = saveBitmapToCacheAndGetUri(context, bitmap)
+    val colors = getGradientColors(bitmap)
 
     println(contentUri?.path)
     val storiesIntent = Intent("com.facebook.stories.ADD_TO_STORY").apply {
         type = "image/png"
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         putExtra("interactive_asset_uri", contentUri)
-        putExtra("top_background_color", "#EE4645")
-        putExtra("bottom_background_color", "#0054a1")
+        putExtra("top_background_color", colors.top)
+        putExtra("bottom_background_color", colors.bottom)
         clipData = android.content.ClipData.newRawUri("", contentUri)
 //        putExtra("com.facebook.platform.extra.APPLICATION_ID", "APP ID") // TODO add app id, probably not needed
     }
